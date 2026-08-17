@@ -71,4 +71,6 @@ dependencies {
 
     // DataStore (Preferencias de Usuario)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    // Galería completa de íconos de Material Design
+    implementation("androidx.compose.material:material-icons-extended")
 }
