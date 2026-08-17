@@ -1,5 +1,6 @@
 package com.example.examen_final.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,7 +35,7 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
                 title = { Text("Mis Gastos") },
                 actions = {
                     IconButton(onClick = { navController.navigate(AppScreens.Settings.route) }) {
-                        Icon(androidx.compose.material.icons.Icons.Filled.Settings, contentDescription = "Configuración")
+                        Icon(Icons.Filled.Settings, contentDescription = "Configuración")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -67,6 +68,13 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
+                // Botón para ir al Historial Completo
+                OutlinedButton(
+                    onClick = { navController.navigate(AppScreens.ExpenseHistory.route) },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    Text("Ver Historial Completo")
+                }
 
                 // Aquí está la magia: La lista deslizable
                 LazyColumn(
@@ -74,7 +82,13 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp) // Espacio entre tarjetas
                 ) {
                     items(expenses) { expense ->
-                        ExpenseCard(expense = expense)
+                        ExpenseCard(
+                            expense = expense,
+                            onClick = {
+                                viewModel.selectExpense(expense)
+                                navController.navigate(AppScreens.ExpenseDetail.route)
+                            }
+                        )
                     }
                 }
             }
@@ -84,13 +98,15 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
 
 // Diseño individual para cada tarjeta de gasto
 @Composable
-fun ExpenseCard(expense: ExpenseEntity) {
+fun ExpenseCard(expense: ExpenseEntity, onClick: () -> Unit) {
     // Formateamos la fecha para que se vea bonita (ej. "16/08/2026")
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val dateString = dateFormat.format(Date(expense.dateTimestamp))
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant

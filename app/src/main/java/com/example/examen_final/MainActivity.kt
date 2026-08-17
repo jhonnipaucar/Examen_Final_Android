@@ -24,6 +24,7 @@ import com.example.examen_final.ui.theme.Examen_FinalTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,10 +67,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(route = AppScreens.ExpenseHistory.route) {
-                            PlaceholderScreen(title = "Pantalla 3: Historial de Gastos")
+                            com.example.examen_final.ui.screens.ExpenseHistoryScreen(
+                                navController = navController,
+                                viewModel = viewModel
+                            )
                         }
                         composable(route = AppScreens.ExpenseDetail.route) {
-                            PlaceholderScreen(title = "Pantalla 4: Detalle")
+                            com.example.examen_final.ui.screens.ExpenseDetailScreen(
+                                navController = navController,
+                                viewModel = viewModel
+                            )
                         }
                         composable(route = AppScreens.Settings.route) {
                             com.example.examen_final.ui.screens.SettingsScreen(

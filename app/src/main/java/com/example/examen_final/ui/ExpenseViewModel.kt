@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.examen_final.data.local.ExpenseEntity
 import com.example.examen_final.domain.ExpenseRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,7 +28,17 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
+
         )
+    // Variable para guardar el gasto que el usuario seleccione para ver en detalle
+    // Variable para guardar el gasto que el usuario seleccione para ver en detalle
+    private val _selectedExpense = MutableStateFlow<ExpenseEntity?>(null)
+    val selectedExpense: StateFlow<ExpenseEntity?> = _selectedExpense.asStateFlow()
+
+    // Función que llamaremos cuando toques una tarjeta
+    fun selectExpense(expense: ExpenseEntity) {
+        _selectedExpense.value = expense
+    }
 
     // 3. Función para agregar un gasto nuevo (se ejecuta en segundo plano)
     fun addExpense(
