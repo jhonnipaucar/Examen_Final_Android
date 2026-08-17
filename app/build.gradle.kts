@@ -7,16 +7,12 @@ plugins {
 
 android {
     namespace = "com.example.examen_final"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.examen_final"
         minSdk = 29
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -33,12 +29,16 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     buildFeatures {
         compose = true
     }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 dependencies {
@@ -61,11 +61,14 @@ dependencies {
     // --- DEPENDENCIAS AGREGADAS PARA EL PROYECTO ---
 
     // Room (Persistencia Local de Gastos)
-    val roomVersion = "2.6.1"
+    val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
-    "kapt"("androidx.room:room-compiler:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
 
     // Navigation Compose (Para las 5 pantallas)
     implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // DataStore (Preferencias de Usuario)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }

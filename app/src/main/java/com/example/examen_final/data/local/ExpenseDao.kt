@@ -16,4 +16,3 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses_table ORDER BY dateTimestamp DESC")
     fun getAllExpenses(): Flow<List<ExpenseEntity>>
 }
-}
