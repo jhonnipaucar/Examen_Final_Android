@@ -73,4 +73,7 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     // Galería completa de íconos de Material Design
     implementation("androidx.compose.material:material-icons-extended")
+
+    // Librería Coil para cargar imágenes en Jetpack Compose
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

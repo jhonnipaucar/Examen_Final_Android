@@ -1,16 +1,36 @@
 package com.example.examen_final.ui.screens
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import com.example.examen_final.ui.ExpenseViewModel
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+// Función auxiliar: Crea un archivo vacío en la carpeta segura que configuramos antes
+fun createImageFile(context: Context): File {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val storageDir = File(context.cacheDir, "images")
+    if (!storageDir.exists()) storageDir.mkdirs()
+    return File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,6 +38,21 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
     var title by remember { mutableStateOf("") }
     var amountStr by remember { mutableStateOf("") }
     var currency by remember { mutableStateOf("USD") }
+
+    // Herramientas para la cámara
+    val context = LocalContext.current
+    var photoUri by remember { mutableStateOf<Uri?>(null) } // Foto final
+    var tempUri by remember { mutableStateOf<Uri?>(null) }  // Ruta temporal mientras tomamos la foto
+
+    // El lanzador mágico que abre la cámara y espera el resultado
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                photoUri = tempUri // Si el usuario tomó la foto y le dio a "Aceptar", guardamos la ruta
+            }
+        }
+    )
 
     Scaffold(
         topBar = {
@@ -42,7 +77,6 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Campo para el título del gasto
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -50,7 +84,6 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Campo para el monto numérico
             OutlinedTextField(
                 value = amountStr,
                 onValueChange = { amountStr = it },
@@ -59,22 +92,44 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // ¡Nuestro nuevo botón para la cámara!
+            OutlinedButton(
+                onClick = {
+                    val file = createImageFile(context)
+                    // USAMOS context.packageName EN LUGAR DEL TEXTO FIJO
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file
+                    )
+                    tempUri = uri
+                    cameraLauncher.launch(uri)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Cambiamos el ícono y el texto si la foto ya se tomó
+                Icon(
+                    imageVector = if (photoUri != null) Icons.Filled.Check else Icons.Filled.CameraAlt,
+                    contentDescription = "Cámara",
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text(if (photoUri != null) "¡Foto capturada con éxito!" else "Tomar foto del recibo")
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Botón para guardar en la base de datos Room
             Button(
                 onClick = {
                     val amount = amountStr.toDoubleOrNull() ?: 0.0
                     if (title.isNotBlank() && amount > 0.0) {
-                        // Llamamos a la función del ViewModel que guarda en segundo plano
                         viewModel.addExpense(
                             title = title,
                             originalAmount = amount,
                             originalCurrency = currency,
-                            convertedAmount = amount, // De momento guardamos el mismo valor
-                            receiptPhotoUri = null
+                            convertedAmount = amount,
+                            // ¡Le pasamos la ruta de la foto a la base de datos!
+                            receiptPhotoUri = photoUri?.toString()
                         )
-                        // Regresamos al Dashboard tras guardar exitosamente
                         navController.popBackStack()
                     }
                 },
