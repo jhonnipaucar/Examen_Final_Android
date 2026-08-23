@@ -63,10 +63,10 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
                     Text("Aún no tienes gastos registrados.", style = MaterialTheme.typography.bodyLarge)
                 }
             } else {
-                // AQUÍ ESTÁ LA MAGIA: Sumamos exclusivamente la columna ya convertida a dólares
+                // Sumamos exclusivamente la columna ya convertida a dólares para el Total Histórico
                 val totalGastoUsd = expenses.sumOf { it.convertedAmount }
 
-                // Nueva Tarjeta Destacada para mostrar el Total Global en Dólares
+                // Tarjeta Destacada para mostrar el Total Global en Dólares
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -100,7 +100,7 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Tus Registros",
+                        text = "Tus Registros Recientes", // Pequeño cambio de texto aquí para mayor claridad
                         style = MaterialTheme.typography.titleMedium
                     )
                     TextButton(onClick = { navController.navigate(AppScreens.ExpenseHistory.route) }) {
@@ -108,12 +108,13 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
                     }
                 }
 
-                // La lista deslizable de gastos
+                // La lista deslizable de gastos (MODIFICADA)
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(expenses) { expense ->
+                    // AQUÍ ESTÁ EL CAMBIO: Ordenamos matemáticamente por fecha, del más nuevo al más viejo
+                    items(expenses.sortedByDescending { it.dateTimestamp }.take(3)) { expense ->
                         ExpenseCard(
                             expense = expense,
                             onClick = {
@@ -162,7 +163,7 @@ fun ExpenseCard(expense: ExpenseEntity, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            // En las tarjetas individuales mantenemos la moneda original para que sepas cómo pagaste
+            // En las tarjetas individuales mantenemos la moneda original
             Text(
                 text = "$${expense.originalAmount} ${expense.originalCurrency}",
                 style = MaterialTheme.typography.titleLarge,
