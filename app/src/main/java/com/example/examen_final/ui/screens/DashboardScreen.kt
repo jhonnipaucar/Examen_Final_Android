@@ -63,23 +63,55 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
                     Text("Aún no tienes gastos registrados.", style = MaterialTheme.typography.bodyLarge)
                 }
             } else {
-                Text(
-                    text = "Resumen (${expenses.size} registros)",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                // Botón para ir al Historial Completo
-                OutlinedButton(
-                    onClick = { navController.navigate(AppScreens.ExpenseHistory.route) },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                // AQUÍ ESTÁ LA MAGIA: Sumamos exclusivamente la columna ya convertida a dólares
+                val totalGastoUsd = expenses.sumOf { it.convertedAmount }
+
+                // Nueva Tarjeta Destacada para mostrar el Total Global en Dólares
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
                 ) {
-                    Text("Ver Historial Completo")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Total Gastado", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            text = "$${String.format(Locale.US, "%.2f", totalGastoUsd)} USD",
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
 
-                // Aquí está la magia: La lista deslizable
+                // Cabecera de la lista de registros
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Tus Registros",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    TextButton(onClick = { navController.navigate(AppScreens.ExpenseHistory.route) }) {
+                        Text("Ver todo")
+                    }
+                }
+
+                // La lista deslizable de gastos
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp) // Espacio entre tarjetas
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(expenses) { expense ->
                         ExpenseCard(
@@ -99,7 +131,6 @@ fun DashboardScreen(navController: NavController, viewModel: ExpenseViewModel) {
 // Diseño individual para cada tarjeta de gasto
 @Composable
 fun ExpenseCard(expense: ExpenseEntity, onClick: () -> Unit) {
-    // Formateamos la fecha para que se vea bonita (ej. "16/08/2026")
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val dateString = dateFormat.format(Date(expense.dateTimestamp))
 
@@ -131,6 +162,7 @@ fun ExpenseCard(expense: ExpenseEntity, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            // En las tarjetas individuales mantenemos la moneda original para que sepas cómo pagaste
             Text(
                 text = "$${expense.originalAmount} ${expense.originalCurrency}",
                 style = MaterialTheme.typography.titleLarge,

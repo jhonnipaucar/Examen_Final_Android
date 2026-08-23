@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.examen_final.data.local.ExpenseEntity
 import com.example.examen_final.domain.ExpenseRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +41,6 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         _selectedExpense.value = expense
     }
 
-    // 3. Función para agregar un gasto nuevo (se ejecuta en segundo plano)
     fun addExpense(
         title: String,
         originalAmount: Double,
@@ -48,16 +48,43 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         convertedAmount: Double,
         receiptPhotoUri: String?
     ) {
-        viewModelScope.launch {
-            val newExpense = ExpenseEntity(
+        viewModelScope.launch(Dispatchers.IO) {
+            var finalConvertedAmount = originalAmount
+
+            try {
+                // Si la moneda NO es USD, llamamos a la API comercial para hacer la conversión
+                if (originalCurrency.uppercase() != "USD") {
+
+                    // AQUÍ PONES TU API KEY REAL ENTRE LAS COMILLAS
+                    val myApiKey = "930d364baaab31d987e82312"
+
+                    // Nos conectamos a internet consultando tu clave y la moneda
+                    val response = com.example.examen_final.network.RetrofitClient.api.getRates(
+                        apiKey = "930d364baaab31d987e82312",
+                        currency = originalCurrency.uppercase()
+                    )
+
+                    // Buscamos a cuánto equivale en USD
+                    val rateToUsd = response.conversion_rates["USD"]
+                    if (rateToUsd != null) {
+                        finalConvertedAmount = originalAmount * rateToUsd
+                    }
+                }
+            } catch (e: Exception) {
+                // Si no hay internet o la clave está mal, capturamos el error para que la app no se cierre
+                e.printStackTrace()
+            }
+
+            // Finalmente, guardamos el gasto en la Base de Datos Local (Room)
+            val expense = ExpenseEntity(
                 title = title,
                 originalAmount = originalAmount,
-                originalCurrency = originalCurrency,
-                convertedAmount = convertedAmount,
-                dateTimestamp = System.currentTimeMillis(), // Guarda la fecha y hora exacta actual
-                receiptPhotoUri = receiptPhotoUri
+                originalCurrency = originalCurrency.uppercase(),
+                convertedAmount = finalConvertedAmount, // ¡Aquí va el monto ya convertido por la API!
+                receiptPhotoUri = receiptPhotoUri,
+                dateTimestamp = System.currentTimeMillis()
             )
-            repository.addExpense(newExpense)
+            repository.addExpense(expense)
         }
     }
 
@@ -65,6 +92,12 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     fun toggleDarkMode(isDark: Boolean) {
         viewModelScope.launch {
             repository.toggleDarkMode(isDark)
+        }
+    }
+
+    fun deleteExpense(expense: ExpenseEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteExpense(expense)
         }
     }
 }
@@ -80,4 +113,6 @@ class ExpenseViewModelFactory(private val repository: ExpenseRepository) : ViewM
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
+
+
 }

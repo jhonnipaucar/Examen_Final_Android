@@ -24,7 +24,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Función auxiliar: Crea un archivo vacío en la carpeta segura que configuramos antes
+// Función auxiliar: Crea un archivo vacío en la carpeta segura
 fun createImageFile(context: Context): File {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val storageDir = File(context.cacheDir, "images")
@@ -37,19 +37,23 @@ fun createImageFile(context: Context): File {
 fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) {
     var title by remember { mutableStateOf("") }
     var amountStr by remember { mutableStateOf("") }
+
+    // Variables para el Menú Desplegable de Monedas
     var currency by remember { mutableStateOf("USD") }
+    var expanded by remember { mutableStateOf(false) }
+    val currencyOptions = listOf("USD", "EUR", "MXN", "COP", "PEN", "ARS", "CLP", "GBP")
 
     // Herramientas para la cámara
     val context = LocalContext.current
     var photoUri by remember { mutableStateOf<Uri?>(null) } // Foto final
-    var tempUri by remember { mutableStateOf<Uri?>(null) }  // Ruta temporal mientras tomamos la foto
+    var tempUri by remember { mutableStateOf<Uri?>(null) }  // Ruta temporal
 
     // El lanzador mágico que abre la cámara y espera el resultado
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
             if (success) {
-                photoUri = tempUri // Si el usuario tomó la foto y le dio a "Aceptar", guardamos la ruta
+                photoUri = tempUri // Si el usuario tomó la foto y aceptó, guardamos la ruta
             }
         }
     )
@@ -92,11 +96,41 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // ¡Nuestro nuevo botón para la cámara!
+            // ¡EL NUEVO MENÚ DESPLEGABLE DE MONEDAS!
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = currency,
+                    onValueChange = {},
+                    readOnly = true, // Evita que el usuario escriba a mano
+                    label = { Text("Moneda") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    currencyOptions.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                currency = selectionOption
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Botón para la cámara
             OutlinedButton(
                 onClick = {
                     val file = createImageFile(context)
-                    // USAMOS context.packageName EN LUGAR DEL TEXTO FIJO
                     val uri = FileProvider.getUriForFile(
                         context,
                         "${context.packageName}.fileprovider",
@@ -107,7 +141,6 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Cambiamos el ícono y el texto si la foto ya se tomó
                 Icon(
                     imageVector = if (photoUri != null) Icons.Filled.Check else Icons.Filled.CameraAlt,
                     contentDescription = "Cámara",
@@ -127,7 +160,6 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                             originalAmount = amount,
                             originalCurrency = currency,
                             convertedAmount = amount,
-                            // ¡Le pasamos la ruta de la foto a la base de datos!
                             receiptPhotoUri = photoUri?.toString()
                         )
                         navController.popBackStack()

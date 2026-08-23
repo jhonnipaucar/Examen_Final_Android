@@ -16,14 +16,15 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.examen_final.navigation.AppScreens
 import com.example.examen_final.ui.ExpenseViewModel
+import java.util.Locale // Necesario para darle el formato correcto a los decimales
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseHistoryScreen(navController: NavController, viewModel: ExpenseViewModel) {
     val expenses by viewModel.expenses.collectAsState()
 
-    // Magia de Kotlin: Sumamos automáticamente todos los montos de la base de datos
-    val totalAmount = expenses.sumOf { it.originalAmount }
+    // Magia de Kotlin: Sumamos automáticamente todos los montos de la base de datos (ya convertidos)
+    val totalGasto = expenses.sumOf { it.convertedAmount }
 
     Scaffold(
         topBar = {
@@ -63,8 +64,10 @@ fun ExpenseHistoryScreen(navController: NavController, viewModel: ExpenseViewMod
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("Total Gastado Histórico", style = MaterialTheme.typography.labelLarge)
+
+                    // AQUÍ ESTÁ LA CORRECCIÓN: Usamos "totalGasto" y le damos formato de USD
                     Text(
-                        text = "$$totalAmount",
+                        text = "$${String.format(Locale.US, "%.2f", totalGasto)} USD",
                         style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onTertiaryContainer

@@ -19,6 +19,10 @@ class ExpenseRepository(
         expenseDao.insertExpense(expense)
     }
 
+    suspend fun deleteExpense(expense: ExpenseEntity) {
+        expenseDao.deleteExpense(expense)
+    }
+
     // --- LÓGICA DE PREFERENCIAS (MODO OSCURO) ---
 
     // Lee si el modo oscuro está activado
