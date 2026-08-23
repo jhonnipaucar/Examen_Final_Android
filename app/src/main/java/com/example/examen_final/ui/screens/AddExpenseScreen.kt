@@ -9,7 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,6 +35,10 @@ fun createImageFile(context: Context): File {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) {
+    // Observamos los estados de la API desde el ViewModel
+    val isLoading by viewModel.isLoading.collectAsState()
+    val apiError by viewModel.apiError.collectAsState()
+
     var title by remember { mutableStateOf("") }
     var amountStr by remember { mutableStateOf("") }
 
@@ -43,17 +47,48 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
     var expanded by remember { mutableStateOf(false) }
     val currencyOptions = listOf("USD", "EUR", "MXN", "COP", "PEN", "ARS", "CLP", "GBP")
 
-    // Herramientas para la cámara
+    // Herramientas para la cámara y galería
     val context = LocalContext.current
-    var photoUri by remember { mutableStateOf<Uri?>(null) } // Foto final
-    var tempUri by remember { mutableStateOf<Uri?>(null) }  // Ruta temporal
+    var photoUri by remember { mutableStateOf<Uri?>(null) } // Foto final (de cámara o galería)
+    var tempUri by remember { mutableStateOf<Uri?>(null) }  // Ruta temporal para la cámara
 
-    // El lanzador mágico que abre la cámara y espera el resultado
+    // Lanzador 1: Para tomar foto con la cámara
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
             if (success) {
-                photoUri = tempUri // Si el usuario tomó la foto y aceptó, guardamos la ruta
+                photoUri = tempUri
+            }
+        }
+    )
+
+    // Lanzador 2: Para escoger foto de la galería
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
+            if (uri != null) {
+                photoUri = uri // Si el usuario escoge una foto, la guardamos
+            }
+        }
+    )
+
+    // Lanzador 3: ¡NUEVO! Para pedir permiso de la cámara explícitamente
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                // Si acepta, preparamos el archivo y abrimos la cámara
+                val file = createImageFile(context)
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                tempUri = uri
+                cameraLauncher.launch(uri)
+            } else {
+                // Si rechaza, mostramos el mensaje de error
+                android.widget.Toast.makeText(context, "Permiso de cámara denegado. Puedes usar la galería.", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     )
@@ -96,7 +131,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // ¡EL NUEVO MENÚ DESPLEGABLE DE MONEDAS!
+            // Menú Desplegable de Monedas
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded }
@@ -104,7 +139,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 OutlinedTextField(
                     value = currency,
                     onValueChange = {},
-                    readOnly = true, // Evita que el usuario escriba a mano
+                    readOnly = true,
                     label = { Text("Moneda") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
@@ -127,30 +162,54 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 }
             }
 
-            // Botón para la cámara
-            OutlinedButton(
-                onClick = {
-                    val file = createImageFile(context)
-                    val uri = FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
-                        file
-                    )
-                    tempUri = uri
-                    cameraLauncher.launch(uri)
-                },
-                modifier = Modifier.fillMaxWidth()
+            Text("Comprobante (Opcional)", style = MaterialTheme.typography.labelLarge)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = if (photoUri != null) Icons.Filled.Check else Icons.Filled.CameraAlt,
-                    contentDescription = "Cámara",
-                    modifier = Modifier.padding(end = 8.dp)
+                // ¡BOTÓN DE CÁMARA ACTUALIZADO!
+                OutlinedButton(
+                    onClick = {
+                        // Ahora pedimos permiso al sistema operativo primero
+                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.CameraAlt, contentDescription = "Cámara", modifier = Modifier.padding(end = 4.dp))
+                    Text("Cámara")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        galleryLauncher.launch("image/*")
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Image, contentDescription = "Galería", modifier = Modifier.padding(end = 4.dp))
+                    Text("Galería")
+                }
+            }
+
+            if (photoUri != null) {
+                Text(
+                    text = "¡Imagen adjuntada con éxito!",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium
                 )
-                Text(if (photoUri != null) "¡Foto capturada con éxito!" else "Tomar foto del recibo")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Lógica para mostrar el error de la API (Toast)
+            LaunchedEffect(apiError) {
+                if (apiError != null) {
+                    android.widget.Toast.makeText(context, apiError, android.widget.Toast.LENGTH_LONG).show()
+                    viewModel.clearError() // Limpiamos el error para que no vuelva a salir al rotar la pantalla
+                }
+            }
+
+            // BOTÓN INTELIGENTE: Cambia su aspecto y desactiva los clicks si está cargando
             Button(
                 onClick = {
                     val amount = amountStr.toDoubleOrNull() ?: 0.0
@@ -165,9 +224,20 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                         navController.popBackStack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading // ¡Evita el doble click mientras carga!
             ) {
-                Text("Guardar Gasto")
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Convirtiendo moneda...")
+                } else {
+                    Text("Guardar Gasto")
+                }
             }
         }
     }

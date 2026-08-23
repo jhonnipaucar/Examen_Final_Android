@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() {
 
-    // 1. Exponemos la lista de gastos como StateFlow para que la UI la observe en tiempo real
+    // 1. Exponemos la lista de gastos
     val expenses: StateFlow<List<ExpenseEntity>> = repository.allExpenses
         .stateIn(
             scope = viewModelScope,
@@ -23,20 +23,34 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
             initialValue = emptyList()
         )
 
-    // 2. Exponemos el estado del modo oscuro como StateFlow
+    // 2. Exponemos el estado del modo oscuro
     val isDarkMode: StateFlow<Boolean> = repository.isDarkMode
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
-
         )
-    // Variable para guardar el gasto que el usuario seleccione para ver en detalle
-    // Variable para guardar el gasto que el usuario seleccione para ver en detalle
+
+    // 3. Variable para guardar el gasto seleccionado
     private val _selectedExpense = MutableStateFlow<ExpenseEntity?>(null)
     val selectedExpense: StateFlow<ExpenseEntity?> = _selectedExpense.asStateFlow()
 
-    // Función que llamaremos cuando toques una tarjeta
+    // --- ¡NUEVAS VARIABLES PARA CUMPLIR CON EL SÍLABO! ---
+
+    // Estado de "Cargando"
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // Estado de "Error de API"
+    private val _apiError = MutableStateFlow<String?>(null)
+    val apiError: StateFlow<String?> = _apiError.asStateFlow()
+
+    // Función para limpiar el error una vez mostrado
+    fun clearError() {
+        _apiError.value = null
+    }
+    // -----------------------------------------------------
+
     fun selectExpense(expense: ExpenseEntity) {
         _selectedExpense.value = expense
     }
@@ -45,50 +59,48 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         title: String,
         originalAmount: Double,
         originalCurrency: String,
-        convertedAmount: Double,
+        convertedAmount: Double, // Mantenemos tu parámetro para no romper tu UI
         receiptPhotoUri: String?
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true // ¡Iniciamos el estado de carga!
             var finalConvertedAmount = originalAmount
 
             try {
-                // Si la moneda NO es USD, llamamos a la API comercial para hacer la conversión
                 if (originalCurrency.uppercase() != "USD") {
-
-                    // AQUÍ PONES TU API KEY REAL ENTRE LAS COMILLAS
                     val myApiKey = "930d364baaab31d987e82312"
 
-                    // Nos conectamos a internet consultando tu clave y la moneda
                     val response = com.example.examen_final.network.RetrofitClient.api.getRates(
-                        apiKey = "930d364baaab31d987e82312",
+                        apiKey = myApiKey,
                         currency = originalCurrency.uppercase()
                     )
 
-                    // Buscamos a cuánto equivale en USD
                     val rateToUsd = response.conversion_rates["USD"]
                     if (rateToUsd != null) {
                         finalConvertedAmount = originalAmount * rateToUsd
                     }
                 }
             } catch (e: Exception) {
-                // Si no hay internet o la clave está mal, capturamos el error para que la app no se cierre
+                // ¡AQUÍ ESTÁ EL MANEJO VISIBLE DEL ERROR!
+                _apiError.value = "Sin conexión a internet. El gasto se guardó con el monto original."
                 e.printStackTrace()
-            }
+            } finally {
+                // Guardamos el gasto (haya habido éxito o error con el internet)
+                val expense = ExpenseEntity(
+                    title = title,
+                    originalAmount = originalAmount,
+                    originalCurrency = originalCurrency.uppercase(),
+                    convertedAmount = finalConvertedAmount,
+                    receiptPhotoUri = receiptPhotoUri,
+                    dateTimestamp = System.currentTimeMillis()
+                )
+                repository.addExpense(expense)
 
-            // Finalmente, guardamos el gasto en la Base de Datos Local (Room)
-            val expense = ExpenseEntity(
-                title = title,
-                originalAmount = originalAmount,
-                originalCurrency = originalCurrency.uppercase(),
-                convertedAmount = finalConvertedAmount, // ¡Aquí va el monto ya convertido por la API!
-                receiptPhotoUri = receiptPhotoUri,
-                dateTimestamp = System.currentTimeMillis()
-            )
-            repository.addExpense(expense)
+                _isLoading.value = false // ¡Apagamos el estado de carga al terminar!
+            }
         }
     }
 
-    // 4. Función para cambiar el modo oscuro
     fun toggleDarkMode(isDark: Boolean) {
         viewModelScope.launch {
             repository.toggleDarkMode(isDark)
@@ -103,8 +115,6 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
 }
 
 // --- FACTORY ---
-// Esta clase extra es necesaria para enseñarle a Android cómo construir
-// nuestro ViewModel, ya que le estamos pasando el Repositorio como parámetro.
 class ExpenseViewModelFactory(private val repository: ExpenseRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ExpenseViewModel::class.java)) {
@@ -113,6 +123,4 @@ class ExpenseViewModelFactory(private val repository: ExpenseRepository) : ViewM
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
-
-
 }
