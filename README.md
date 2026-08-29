@@ -11,7 +11,7 @@ El proyecto fue construido utilizando MVVM (Model-View-ViewModel) combinado con 
 
 *   Capa UI: Desarrollada 100% con Jetpack Compose, utilizando navegación reactiva y LazyColumn para el manejo eficiente de listas dinámicas en el historial.
 *   ViewModel: Centraliza la lógica de negocio y expone los estados a la interfaz visual utilizando flujos reactivos (StateFlow).
-*   Repositorio: Actúa como mediador central aplicando el principio de abstracción. La UI no conoce el origen de los datos, el ViewModel nunca accede directamente a Retrofit o a los DAOs, siempre pasa por el Repositorio.
+*   Repositorio: Actúa como mediador para la persistencia de datos aplicando el principio de abstracción. La UI no conoce el origen de la información y se comunica únicamente con el ViewModel. Por su parte, el ViewModel centraliza la lógica de negocio: gestiona las peticiones externas de red (Retrofit) de manera asíncrona y delega todo el almacenamiento y lectura local (DAOs y DataStore) exclusivamente a través del Repositorio.
 *   Corrutinas: Se utilizaron flujos asíncronos (viewModelScope.launch) para todas las operaciones pesadas y llamadas a red, asegurando un rendimiento óptimo.
 
 FUENTES DE DATOS
