@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
             )
 
             // 2. Observamos si el modo oscuro está activado en tu base de datos
-            // (Si marca rojo, presiona Alt+Enter sobre collectAsState y getValue para importarlos)
+
             val isDarkMode by viewModel.isDarkMode.collectAsState()
 
             // 3. ¡La Magia! Le pasamos ese estado al Tema de la app

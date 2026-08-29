@@ -45,9 +45,17 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     private val _apiError = MutableStateFlow<String?>(null)
     val apiError: StateFlow<String?> = _apiError.asStateFlow()
 
+    // Estado para notificar a la UI cuando el guardado finalice
+    private val _saveCompleted = MutableStateFlow(false)
+    val saveCompleted: StateFlow<Boolean> = _saveCompleted.asStateFlow()
+
     // Función para limpiar el error una vez mostrado
     fun clearError() {
         _apiError.value = null
+    }
+
+    fun resetSaveCompleted() {
+        _saveCompleted.value = false
     }
     // -----------------------------------------------------
 
@@ -64,6 +72,7 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true // ¡Iniciamos el estado de carga!
+            _saveCompleted.value = false // Reiniciar estado de finalización
             var finalConvertedAmount = originalAmount
 
             try {
@@ -80,9 +89,21 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
                         finalConvertedAmount = originalAmount * rateToUsd
                     }
                 }
+            } catch (e: java.net.UnknownHostException) {
+                // Falta de conexión a internet o DNS no resuelto
+                _apiError.value = "No se pudo realizar la conversión porque no tienes conexión a Internet. El gasto se guardó con el monto original de $originalAmount $originalCurrency."
+                e.printStackTrace()
+            } catch (e: java.io.IOException) {
+                // Error de Entrada/Salida de red general
+                _apiError.value = "Hubo un problema de conexión de red al convertir la moneda. El gasto se guardó con el monto original de $originalAmount $originalCurrency."
+                e.printStackTrace()
+            } catch (e: retrofit2.HttpException) {
+                // Error de servidor (ej. API Key incorrecta o caída de servicio)
+                _apiError.value = "El servicio de conversión de divisas no está disponible temporalmente. El gasto se guardó con el monto original de $originalAmount $originalCurrency."
+                e.printStackTrace()
             } catch (e: Exception) {
-                // ¡AQUÍ ESTÁ EL MANEJO VISIBLE DEL ERROR!
-                _apiError.value = "Sin conexión a internet. El gasto se guardó con el monto original."
+                // Cualquier otro error genérico
+                _apiError.value = "Ocurrió un error inesperado al intentar convertir la moneda. El gasto se guardó con el monto original de $originalAmount $originalCurrency."
                 e.printStackTrace()
             } finally {
                 // Guardamos el gasto (haya habido éxito o error con el internet)
@@ -97,6 +118,7 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
                 repository.addExpense(expense)
 
                 _isLoading.value = false // ¡Apagamos el estado de carga al terminar!
+                _saveCompleted.value = true // Notificar que se completó el registro
             }
         }
     }

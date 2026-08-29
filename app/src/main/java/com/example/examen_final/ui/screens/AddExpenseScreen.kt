@@ -38,9 +38,13 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
     // Observamos los estados de la API desde el ViewModel
     val isLoading by viewModel.isLoading.collectAsState()
     val apiError by viewModel.apiError.collectAsState()
+    val saveCompleted by viewModel.saveCompleted.collectAsState()
 
     var title by remember { mutableStateOf("") }
     var amountStr by remember { mutableStateOf("") }
+
+    var titleError by remember { mutableStateOf<String?>(null) }
+    var amountError by remember { mutableStateOf<String?>(null) }
 
     // Variables para el Menú Desplegable de Monedas
     var currency by remember { mutableStateOf("USD") }
@@ -62,7 +66,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
         }
     )
 
-    // Lanzador 2: Para escoger foto de la galería
+    // Lanzador 2 galería
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri: Uri? ->
@@ -72,7 +76,7 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
         }
     )
 
-    // Lanzador 3: ¡NUEVO! Para pedir permiso de la cámara explícitamente
+    // Lanzador 3: Para pedir permiso de la cámara explícitamente
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -118,16 +122,31 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
         ) {
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = { 
+                    title = it 
+                    if (it.isNotBlank()) {
+                        titleError = null
+                    }
+                },
                 label = { Text("Descripción del Gasto") },
+                isError = titleError != null,
+                supportingText = titleError?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
                 value = amountStr,
-                onValueChange = { amountStr = it },
+                onValueChange = { 
+                    amountStr = it 
+                    val amount = it.toDoubleOrNull()
+                    if (amount != null && amount > 0.0) {
+                        amountError = null
+                    }
+                },
                 label = { Text("Monto") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = amountError != null,
+                supportingText = amountError?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -168,10 +187,9 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // ¡BOTÓN DE CÁMARA ACTUALIZADO!
                 OutlinedButton(
                     onClick = {
-                        // Ahora pedimos permiso al sistema operativo primero
+                        // permiso al sistema operativo primero
                         cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                     },
                     modifier = Modifier.weight(1f)
@@ -209,23 +227,43 @@ fun AddExpenseScreen(navController: NavController, viewModel: ExpenseViewModel) 
                 }
             }
 
+            // Lógica para cerrar la pantalla una vez finalizado el guardado
+            LaunchedEffect(saveCompleted) {
+                if (saveCompleted) {
+                    navController.popBackStack()
+                    viewModel.resetSaveCompleted() // Reiniciar el estado para futuros registros
+                }
+            }
+
             // BOTÓN INTELIGENTE: Cambia su aspecto y desactiva los clicks si está cargando
             Button(
                 onClick = {
-                    val amount = amountStr.toDoubleOrNull() ?: 0.0
-                    if (title.isNotBlank() && amount > 0.0) {
+                    val amount = amountStr.toDoubleOrNull()
+                    val isTitleValid = title.isNotBlank()
+                    val isAmountValid = amount != null && amount > 0.0
+
+                    // Asignación de mensajes de error explicativos
+                    titleError = if (isTitleValid) null else "La descripción no puede estar vacía"
+                    amountError = if (isAmountValid) {
+                        null
+                    } else if (amountStr.isBlank()) {
+                        "El monto no puede estar vacío"
+                    } else {
+                        "Ingresa un número válido mayor a 0"
+                    }
+
+                    if (isTitleValid && isAmountValid) {
                         viewModel.addExpense(
                             title = title,
-                            originalAmount = amount,
+                            originalAmount = amount!!,
                             originalCurrency = currency,
                             convertedAmount = amount,
                             receiptPhotoUri = photoUri?.toString()
                         )
-                        navController.popBackStack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading // ¡Evita el doble click mientras carga!
+                enabled = !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(

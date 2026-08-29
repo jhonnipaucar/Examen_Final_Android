@@ -5,8 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Path
 
-// 1. El molde de cómo la API nos devuelve la información
-// 1. El molde de cómo la API nos devuelve la información
+// 1. Solo acoge la moenda y la conversion - Traductor de JSON  Kotlin
 data class ExchangeResponse(
     val base_code: String,
     val conversion_rates: Map<String, Double>

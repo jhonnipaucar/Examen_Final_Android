@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ExpenseDao {
-    // Usamos 'suspend' porque la rúbrica exige corrutinas para operaciones asíncronas
+    // corrutinas para operaciones asíncronas
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExpense(expense: ExpenseEntity)
 
