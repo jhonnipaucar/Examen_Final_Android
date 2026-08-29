@@ -67,7 +67,7 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         title: String,
         originalAmount: Double,
         originalCurrency: String,
-        convertedAmount: Double, // Mantenemos tu parámetro para no romper tu UI
+        convertedAmount: Double, // Mantenemos tu parámetro para no romper tu
         receiptPhotoUri: String?
     ) {
         viewModelScope.launch(Dispatchers.IO) {
